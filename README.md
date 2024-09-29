@@ -7,7 +7,7 @@ Bitcoin Rune protocol golang implement library.
 ```go
 go get github.com/bxelab/runestone@latest
 ```
-OR
+or
 ```go
 git clone https://github.com/njskyun/runestone.git
 cd runestone/
