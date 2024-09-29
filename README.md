@@ -3,11 +3,18 @@
 Bitcoin Rune protocol golang implement library.
 
 ## How to use
-
+ 
 ```go
 go get github.com/bxelab/runestone@latest
 ```
-
+OR
+```go
+git clone https://github.com/njskyun/runestone.git
+cd runestone/
+go mod tidy
+cd cmd/runestonecli
+go run .
+```
 ### Etching
 
 Define a new Rune named *STUDYZY.GMAIL.COM* 
