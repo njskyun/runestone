@@ -123,7 +123,7 @@ func getUtxos(address string) ([]*Utxo, error) {
 			continue
 		}
 
-		p.Println("input Txid: ", h, "; vout:" , vout, "; amount: ", amount, "; PkScript:  ", script)
+		p.Println("input Txid: ", h, "; vout:" , vout, "; amount: ", amount)
  
 		inputUtxos = append(inputUtxos, &Utxo{
 			TxHash:   h, 
