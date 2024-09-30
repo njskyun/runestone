@@ -1,6 +1,6 @@
-# Runestone Golang library
+# 起源
+这是一位大牛写的大饼链上打符文的脚本，发现在分型上有些问题，把整个fork下来，进行了改动，已支持分型网络，且专门对utxo拆分的更加友好
 
-Bitcoin Rune protocol golang implement library.
 
 ## 前提
 
