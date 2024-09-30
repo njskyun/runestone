@@ -24,7 +24,7 @@ var (
 )
 
 type FeeData struct {
-	AvgFee10 int64 `json:"avgFee_75"`  //avgFee_50 avgFee_75
+	AvgFee10 int64 `json:"avgFee_75"`  //avgFee_50 avgFee_75 avgFee_90
 }
 
 var config = DefaultConfig()
@@ -35,11 +35,8 @@ func main() {
 	p = message.NewPrinter(lang)
 	loadConfig()
 	checkAndPrintConfig()
-	   
-	//设置为0，则会自动使用链上gas，可能会比较高
-	var init_gas_fee int64 = 500  
 
-	BuildMintTxs(init_gas_fee) 
+	BuildMintTxs() 
 }
 
 
@@ -274,7 +271,7 @@ func SendTx(ctx []byte) {
 }
 
 
-func BuildMintTxs(init_gas_fee int64) {
+func BuildMintTxs() {
 	runeId, err := config.GetMint()
 	
 	if err != nil {
@@ -291,12 +288,14 @@ func BuildMintTxs(init_gas_fee int64) {
 	//dataString, _ := txscript.DisasmString(data)
 	//p.Printf("Mint Script: %s\n", dataString)
  	
+	init_gas_fee := config.GetFeePerByte()
+
 	prvKey, address, _ := config.GetPrivateKeyAddr()
 	for {
 		time.Sleep(1 * time.Second)
   
 		gas_fee := int64(0) 
- 
+		
 		if init_gas_fee == 0 {
 			gas_fee, err = fetchAvgFee() 
 			if err != nil {
