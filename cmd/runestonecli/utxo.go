@@ -15,13 +15,30 @@ type Utxo struct {
 	PkScript []byte
 }
 
-func (u *Utxo) OutPoint() wire.OutPoint {
-	h, _ := chainhash.NewHash(u.TxHash[:])
+ 
+
+func (u *Utxo) OutPoint() wire.OutPoint {   
+	hashBytes := reverseBytes(u.TxHash[:])
+ 
+	h, err := chainhash.NewHash(hashBytes)
+	if err != nil {
+		p.Println("Error converting TxHash:", err)
+		return wire.OutPoint{}  
+	}
+
 	return wire.OutPoint{
 		Hash:  *h,
 		Index: u.Index,
 	}
 }
+
+func reverseBytes(b []byte) []byte { 
+	for i, j := 0, len(b)-1; i < j; i, j = i+1, j-1 {
+		b[i], b[j] = b[j], b[i]
+	}
+	return b
+}
+   
 func (u *Utxo) TxOut() *wire.TxOut {
 	return wire.NewTxOut(u.Value, u.PkScript)
 }
