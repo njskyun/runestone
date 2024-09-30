@@ -5,12 +5,12 @@ PrivateKey: ""  #钱包里的一个地址的私钥,unisat钱包导出私钥可�
 Mint:
   RuneId: "1:0"
 
-
+#gas费率 设置为0的时候会自动使用链上gas，可能会偏高
+FeePerByte: 50  
 
 #不需要动
 Network: "mainnet" # mainnet 
 RpcUrl: "https://mempool.fractalbitcoin.io/api" #https://mempool.space/api https://mempool.space/testnet/api
-FeePerByte: 5
 UtxoAmount: 330
 
 #部署符文，修改下面
