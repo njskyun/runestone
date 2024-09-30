@@ -12,7 +12,8 @@ go mod tidy
 ### 使用
 1. cd cmd/runestonecli
 2. 修改config.yaml配置文件
-3. 运行：go run .
+3. main.go 文件中有一些基本逻辑，可以自行更改
+4. 运行：go run .
 
   
 
