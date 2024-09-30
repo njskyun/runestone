@@ -17,6 +17,7 @@ import (
 )
 
 type Config struct {
+	WalletName string
 	PrivateKey string
 	FeePerByte int64
 	UtxoAmount int64
@@ -42,10 +43,7 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
-		FeePerByte: 5,
-		UtxoAmount: 1000,
-		Network:    "mainnet",
-		RpcUrl:     "https://mempool.space/api",
+		Network:    "mainnet", 
 	}
 
 }
@@ -61,6 +59,13 @@ func (c Config) GetUtxoAmount() int64 {
 	}
 	return c.UtxoAmount
 }
+
+func (c Config) GetWalletName() string { 
+	return c.WalletName
+}
+
+
+
 
 func (c Config) GetEtching() (*runestone.Etching, error) {
 	if c.Etching == nil {
