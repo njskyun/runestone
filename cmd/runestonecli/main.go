@@ -35,8 +35,11 @@ func main() {
 	p = message.NewPrinter(lang)
 	loadConfig()
 	checkAndPrintConfig()
-	  
-	BuildMintTxs() 
+	   
+	//设置为0，则会自动使用链上gas，可能会比较高
+	var init_gas_fee int64 = 500  
+
+	BuildMintTxs(init_gas_fee) 
 }
 
 
@@ -156,7 +159,7 @@ func sendRawTransaction(txHex string) (string, error) {
 	defer resp.Body.Close()
 
 	// 读取并打印响应体
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body) 
 	if err != nil {
 		return "", err
 	}
@@ -271,7 +274,7 @@ func SendTx(ctx []byte) {
 }
 
 
-func BuildMintTxs() {
+func BuildMintTxs(init_gas_fee int64) {
 	runeId, err := config.GetMint()
 	
 	if err != nil {
@@ -291,10 +294,16 @@ func BuildMintTxs() {
 	prvKey, address, _ := config.GetPrivateKeyAddr()
 	for {
 		time.Sleep(1 * time.Second)
-
-		gas_fee, err := fetchAvgFee() 
+  
+		gas_fee := int64(0) 
+ 
+		if init_gas_fee == 0 {
+			gas_fee, err = fetchAvgFee() 
 			if err != nil {
 				return
+			}
+		} else {
+			gas_fee = init_gas_fee
 		}
 
 		p.Println("gas费率:", gas_fee)
@@ -319,7 +328,6 @@ func BuildMintTxs() {
 				}
 				p.Printf("mint rune tx: %x\n", tx)
 
-				
 				SendTx(tx)
 			}
 		}
