@@ -2,6 +2,10 @@
 
 Bitcoin Rune protocol golang implement library.
 
+## 前提
+
+已经安装fractalbitcoin全节点
+
 ## 安装
  
 ```go
