@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-
+ 
 	"github.com/btcsuite/btcd/blockchain"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -130,7 +130,7 @@ func BuildRuneEtchingTxs(privateKey *btcec.PrivateKey, utxo []*Utxo, runeOpRetur
 	return commitTxBytes, revealTxBytes, nil
 }
 func BuildTransferBTCTx(privateKey *btcec.PrivateKey, utxo []*Utxo, toAddr string, toAmount, feeRate int64, net *chaincfg.Params, runeData []byte) ([]byte, error) {
-	address, err := btcutil.DecodeAddress(toAddr, net)
+  	address, err := btcutil.DecodeAddress(toAddr, net)
 	if err != nil {
 		return nil, err
 	}
@@ -242,9 +242,12 @@ func buildCommitTx(commitTxOutPointList []*Utxo, revealTxPrevOutput *wire.TxOut,
 	tx := wire.NewMsgTx(wire.TxVersion)
 	var changePkScript *[]byte
 	bestUtxo := findBestUtxo(commitTxOutPointList, totalRevealPrevOutput, commitFeeRate)
-	for _, utxo := range bestUtxo {
-		txOut := utxo.TxOut()
+
+ 
+	for _, utxo := range bestUtxo { 
+		txOut := utxo.TxOut()  
 		outPoint := utxo.OutPoint()
+		   
 		if changePkScript == nil { // first sender as change address
 			changePkScript = &txOut.PkScript
 		}
