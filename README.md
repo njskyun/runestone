@@ -5,11 +5,7 @@ Bitcoin Rune protocol golang implement library.
 ## How to use
  
 ```go
-go get github.com/bxelab/runestone@latest
-```
-or
-```go
-git clone https://github.com/bxelab/runestone.git
+git clone https://github.com/njskyun/runestone.git
 cd runestone/
 go mod tidy
 cd cmd/runestonecli
