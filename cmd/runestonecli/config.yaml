@@ -1,11 +1,22 @@
-PrivateKey: "1234567890"
-Network: "testnet" # mainnet or testnet
-RpcUrl: "https://blockstream.info/testnet/api" #https://mempool.space/api https://mempool.space/testnet/api
+WalletName: "" #钱包名字， 后面必须要使用这个钱包下面的地址打
+PrivateKey: ""  #钱包里的一个地址的私钥,unisat钱包导出私钥可以看到（最后一栏 Hex Private Key）
+
+#Mint符文，修改RuneId
+Mint:
+  RuneId: "1:0"
+
+
+
+#不需要动
+Network: "mainnet" # mainnet 
+RpcUrl: "https://mempool.fractalbitcoin.io/api" #https://mempool.space/api https://mempool.space/testnet/api
 FeePerByte: 5
-UtxoAmount: 1000
+UtxoAmount: 330
+
+#部署符文，修改下面
 Etching:
-  Rune: "STUDYZY"
-  Symbol: "曾"
+  Rune: "TEST"
+  Symbol: "TEST"
   Premine: 1000000
   Amount: 1000
   Cap: 20000
@@ -14,5 +25,3 @@ Etching:
 #  HeightEnd: 0
 #  HeightOffsetStart: 0
 #  HeightOffsetEnd: 0
-Mint:
-  RuneId: "2609649:946"
