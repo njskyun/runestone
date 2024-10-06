@@ -49,13 +49,13 @@ func DefaultConfig() Config {
 }
 func (c Config) GetFeePerByte() int64 {
 	if c.FeePerByte == 0 {
-		return 5
+		return 0
 	}
 	return c.FeePerByte
 }
 func (c Config) GetUtxoAmount() int64 {
 	if c.UtxoAmount == 0 {
-		return 666
+		return 330
 	}
 	return c.UtxoAmount
 }
