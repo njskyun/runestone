@@ -267,10 +267,12 @@ func SendTx(ctx []byte) {
 	ctxHash, err := sendRawTransaction(hexStr)
 	
 	if err != nil {
-		p.Println("广播失败: ", err.Error())
+		// p.Println("广播失败: ", err.Error())
 		return
 	}
-	p.Println("铸造成功： TX hash:", ctxHash)
+
+	return
+	// p.Println("铸造成功： TX hash:", ctxHash)
 }
 
 
@@ -316,21 +318,30 @@ func BuildMintTxs() {
 			return
 		}
 
+		var wg sync.WaitGroup
+
  		for _, utxo := range utxos {  
-			if utxo.Value > 100000 {  
+			if utxo.Value > 100000 {   
+				wg.Add(1) // 增加 WaitGroup 计数
 
-				var inputUtxos []*Utxo 
+				go func(utxo *Utxo) {
+					defer wg.Done() // 在 Goroutine 结束时减少计数
+					var inputUtxos []*Utxo 
 
-				inputUtxos = append(inputUtxos, utxo)
-				
-				tx, err := BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), gas_fee, config.GetNetwork(), runeData, false)
-				if err != nil {
-					p.Println("BuildMintRuneTx error:", err.Error())
-					return
-				}
+					inputUtxos = append(inputUtxos, utxo)
+					
+					tx, err := BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), gas_fee, config.GetNetwork(), runeData, false)
+					if err != nil {
+						p.Println("BuildMintRuneTx error:", err.Error())
+						return
+					}
 
-				SendTx(tx)
+					SendTx(tx)
+				}(utxo) // 将 utxo 作为参数传入 Goroutine
 			}
 		}
+
+
+		wg.Wait() // 等待所有 Goroutines 完成
 	}
 }
