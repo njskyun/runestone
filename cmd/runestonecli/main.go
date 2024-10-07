@@ -267,7 +267,7 @@ func SendTx(ctx []byte) {
 	ctxHash, err := sendRawTransaction(hexStr)
 	
 	if err != nil {
-		p.Println("SendRawTransaction error:", err.Error())
+		p.Println("广播失败: ", err.Error())
 		return
 	}
 	p.Println("铸造成功： TX hash:", ctxHash)
@@ -322,8 +322,8 @@ func BuildMintTxs() {
 				var inputUtxos []*Utxo 
 
 				inputUtxos = append(inputUtxos, utxo)
-
-				tx, err := BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), gas_fee, config.GetNetwork(), runeData)
+				
+				tx, err := BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), gas_fee, config.GetNetwork(), runeData, false)
 				if err != nil {
 					p.Println("BuildMintRuneTx error:", err.Error())
 					return
