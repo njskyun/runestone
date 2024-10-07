@@ -129,7 +129,7 @@ func BuildRuneEtchingTxs(privateKey *btcec.PrivateKey, utxo []*Utxo, runeOpRetur
 	}
 	return commitTxBytes, revealTxBytes, nil
 }
-func BuildTransferBTCTx(privateKey *btcec.PrivateKey, utxo []*Utxo, toAddr string, toAmount, feeRate int64, net *chaincfg.Params, runeData []byte) ([]byte, error) {
+func BuildTransferBTCTx(privateKey *btcec.PrivateKey, utxo []*Utxo, toAddr string, toAmount, feeRate int64, net *chaincfg.Params, runeData []byte, splitChangeOutput bool) ([]byte, error) {
   	address, err := btcutil.DecodeAddress(toAddr, net)
 	if err != nil {
 		return nil, err
@@ -139,7 +139,7 @@ func BuildTransferBTCTx(privateKey *btcec.PrivateKey, utxo []*Utxo, toAddr strin
 		return nil, err
 	}
 	// 1. build tx
-	transferTx, err := buildCommitTx(utxo, wire.NewTxOut(toAmount, pkScript), feeRate, runeData, true)
+	transferTx, err := buildCommitTx(utxo, wire.NewTxOut(toAmount, pkScript), feeRate, runeData, splitChangeOutput)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +263,8 @@ func buildCommitTx(commitTxOutPointList []*Utxo, revealTxPrevOutput *wire.TxOut,
 	}
 	// add reveal tx output
 	tx.AddTxOut(revealTxPrevOutput)
-	if splitChangeOutput || !bytes.Equal(*changePkScript, revealTxPrevOutput.PkScript) {
+	// || !bytes.Equal(*changePkScript, revealTxPrevOutput.PkScript)
+	if splitChangeOutput  {
 		// add change output
 		tx.AddTxOut(wire.NewTxOut(0, *changePkScript))
 	}
