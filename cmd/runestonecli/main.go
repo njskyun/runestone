@@ -267,13 +267,13 @@ func SendTx(ctx []byte) {
 	ctxHash, err := sendRawTransaction(hexStr)
 	
 	if err != nil {
-		// p.Println("广播失败: ", err.Error())
+		p.Println("广播失败: ",ctxHash, err.Error())
 		return
 	}
 
 	return
 	// p.Println("铸造成功： TX hash:", ctxHash)
-}
+} 
 
 
 func BuildMintTxs() {
