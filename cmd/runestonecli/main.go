@@ -24,7 +24,7 @@ var (
 )
 
 type FeeData struct {
-	AvgFee10 int64 `json:"avgFee_75"`  //avgFee_50 avgFee_75 avgFee_90
+	AvgFee10 int64 `json:"avgFee_90"`  //avgFee_50 avgFee_75 avgFee_90
 }
 
 var config = DefaultConfig()
@@ -122,15 +122,18 @@ func getUtxos(address string) ([]*Utxo, error) {
 			fmt.Println("Error decoding hex:", err)
 			continue
 		}
-
-		p.Println("input Txid: ", h, "; vout:" , vout, "; amount: ", amount)
  
-		inputUtxos = append(inputUtxos, &Utxo{
-			TxHash:   h, 
-			Index:    uint32(vout),
-			Value:    int64(amount * 1e8),
-			PkScript: byteScript, 
-		})
+		
+		if int64(amount * 1e8) > 100000 {
+			p.Println("input Txid: ", h, "; vout:" , vout, "; amount: ", amount)
+			
+			inputUtxos = append(inputUtxos, &Utxo{
+				TxHash:   h, 
+				Index:    uint32(vout),
+				Value:    int64(amount * 1e8),
+				PkScript: byteScript, 
+			})
+		}
 	}
 
 	return inputUtxos, nil 
@@ -267,7 +270,7 @@ func SendTx(ctx []byte) {
 		p.Println("SendRawTransaction error:", err.Error())
 		return
 	}
-	p.Println("TX hash:", ctxHash)
+	p.Println("铸造成功： TX hash:", ctxHash)
 }
 
 
@@ -292,7 +295,7 @@ func BuildMintTxs() {
 
 	prvKey, address, _ := config.GetPrivateKeyAddr()
 	for {
-		time.Sleep(1 * time.Second)
+		// time.Sleep(1 * time.Second)
   
 		gas_fee := int64(0) 
 		
@@ -314,7 +317,7 @@ func BuildMintTxs() {
 		}
 
  		for _, utxo := range utxos {  
-			if utxo.Value > 1000 { 
+			if utxo.Value > 100000 {  
 
 				var inputUtxos []*Utxo 
 
@@ -325,7 +328,6 @@ func BuildMintTxs() {
 					p.Println("BuildMintRuneTx error:", err.Error())
 					return
 				}
-				p.Printf("mint rune tx: %x\n", tx)
 
 				SendTx(tx)
 			}
