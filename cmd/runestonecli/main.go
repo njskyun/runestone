@@ -321,7 +321,7 @@ func BuildMintTxs() {
 
 			inputUtxos = append(inputUtxos, utxo)
 			
-			tx, err := BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), gas_fee, config.GetNetwork(), runeData, false)
+			tx, err := BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), gas_fee, config.GetNetwork(), runeData, true)
 			if err != nil {
 				p.Println("BuildMintRuneTx error:", err.Error())
 				break
