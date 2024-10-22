@@ -17,13 +17,15 @@ import (
 )
 
 type Config struct {
-	WalletName string
-	PrivateKey string
-	FeePerByte int64
-	UtxoAmount int64
-	Network    string
-	RpcUrl     string
-	Etching    *struct {
+	WalletName  string
+	PrivateKey  string
+	FeePerByte  int64
+	UtxoAmount  int64
+	IsAutoSpeed int64
+	Network     string
+	RpcUrl      string
+	LocalRpcUrl string
+	Etching     *struct {
 		Rune              string
 		Logo              string
 		Symbol            *string
@@ -43,7 +45,7 @@ type Config struct {
 
 func DefaultConfig() Config {
 	return Config{
-		Network:    "mainnet", 
+		Network: "mainnet",
 	}
 
 }
@@ -53,6 +55,15 @@ func (c Config) GetFeePerByte() int64 {
 	}
 	return c.FeePerByte
 }
+
+func (c Config) GetLocalRpcUrl() string {
+	return c.LocalRpcUrl
+}
+
+func (c Config) GetIsAutoSpeed() int64 {
+	return c.IsAutoSpeed
+}
+
 func (c Config) GetUtxoAmount() int64 {
 	if c.UtxoAmount == 0 {
 		return 330
@@ -60,12 +71,9 @@ func (c Config) GetUtxoAmount() int64 {
 	return c.UtxoAmount
 }
 
-func (c Config) GetWalletName() string { 
+func (c Config) GetWalletName() string {
 	return c.WalletName
 }
-
-
-
 
 func (c Config) GetEtching() (*runestone.Etching, error) {
 	if c.Etching == nil {
