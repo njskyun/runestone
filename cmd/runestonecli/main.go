@@ -2,50 +2,138 @@ package main
 
 import (
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
+	"io"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
-	"io" 	
-	"encoding/hex"
-  
-	"fmt" 
-	"net/http"  
+
+	"fmt"
+	"net/http"
+
 	"github.com/btcsuite/btcd/wire"
 	"github.com/bxelab/runestone"
 	"github.com/spf13/viper"
-	"golang.org/x/text/message"  
+	"golang.org/x/text/message"
 )
 
-
 var (
-	lastRequestTime    time.Time
-	sharedAvgFee10     int64
-	mu                 sync.Mutex
+	lastRequestTime time.Time
+	sharedAvgFee10  int64
+	mu              sync.Mutex
 )
 
 type FeeData struct {
-	AvgFee10 int64 `json:"avgFee_90"`  //avgFee_50 avgFee_75 avgFee_90
+	AvgFee10 int64 `json:"avgFee_90"` //avgFee_50 avgFee_75 avgFee_90
 }
 
 var config = DefaultConfig()
 var p *message.Printer
- 
 
 func main() {
 	p = message.NewPrinter(lang)
 	loadConfig()
 	checkAndPrintConfig()
 
-	BuildMintTxs() 
+	BuildMintTxs()
 }
 
+func getrawtransaction(txhash string) (map[string]interface{}, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"jsonrpc": "1.0",
+		"id":      "getrawtransaction",
+		"method":  "getrawtransaction",
+		"params":  []interface{}{txhash, 1},
+	})
+	if err != nil {
+		return nil, err
+	}
 
+	localrpc := config.GetLocalRpcUrl()
 
+	resp, err := http.Post(localrpc, "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
 
-  
-func getUtxos(address string) ([]*Utxo, error) { 
-	url := fmt.Sprintf("http://btc:btc@127.0.0.1:8332/wallet/%s", config.GetWalletName())
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, err
+	}
+
+	if errMsg, ok := result["error"]; ok && errMsg != nil {
+		return nil, fmt.Errorf("RPC error: %v", errMsg)
+	}
+
+	return result["result"].(map[string]interface{}), nil
+}
+
+func returnReplaceTxUtxos(txhash string) ([]*Utxo, error) {
+	originTransaction, err := getrawtransaction(txhash)
+	if err != nil {
+		p.Println("Error:", err)
+		return nil, err
+	}
+
+	var inputUtxos []*Utxo
+
+	// 处理 vin
+	vins := originTransaction["vin"].([]interface{})
+	for _, vin := range vins {
+		vinMap := vin.(map[string]interface{})
+		txID := vinMap["txid"].(string)
+		voutIndex := vinMap["vout"].(float64)
+
+		oldTransaction, err := getrawtransaction(txID)
+		if err != nil {
+			return nil, err
+		}
+
+		var script string
+		var amount float64
+		oldVout := oldTransaction["vout"].([]interface{})
+		for _, output := range oldVout {
+			outputMap := output.(map[string]interface{})
+			if outputMap["n"].(float64) == voutIndex {
+				script = outputMap["scriptPubKey"].(map[string]interface{})["hex"].(string)
+				amount = outputMap["value"].(float64)
+				break
+			}
+		}
+
+		byteScript, err := hex.DecodeString(script)
+		if err != nil {
+			return nil, err // 添加错误处理
+		}
+
+		newUtxo := &Utxo{
+			TxHash:        HexToHash(txID),
+			Index:         uint32(voutIndex),
+			Value:         int64(amount * 1e8),
+			PkScript:      byteScript,
+			Ancestorfees:  0,
+			Confirmations: 0,
+			Ancestorsize:  int64(originTransaction["vsize"].(float64)),
+			Ancestorcount: 0,
+		}
+
+		inputUtxos = append(inputUtxos, newUtxo)
+	}
+
+	return inputUtxos, nil
+}
+
+func getUtxos(address string) ([]*Utxo, error) {
+	localrpc := config.GetLocalRpcUrl()
+	url := fmt.Sprintf(localrpc+"/wallet/%s", config.GetWalletName())
 	reqBody, err := json.Marshal(map[string]interface{}{
 		"jsonrpc": "1.0",
 		"id":      "getUtxos",
@@ -89,14 +177,12 @@ func getUtxos(address string) ([]*Utxo, error) {
 			continue
 		}
 
-
 		txid, ok := utxoMap["txid"].(string)
 		if !ok {
 			p.Println("Failed to assert txid as string")
 			continue
 		}
-		 
-		
+
 		vout, ok := utxoMap["vout"].(float64)
 		if !ok {
 			p.Println("Failed to assert vout as float64")
@@ -114,34 +200,74 @@ func getUtxos(address string) ([]*Utxo, error) {
 			p.Println("Failed to assert scriptPubKey as string")
 			continue
 		}
-  
-		h := HexToHash(txid) 
- 
+
+		h := HexToHash(txid)
+
 		byteScript, err := hex.DecodeString(script)
 		if err != nil {
 			fmt.Println("Error decoding hex:", err)
 			continue
 		}
- 
-		
-		if int64(amount * 1e8) > 100000 {
-			p.Println("input Txid: ", h, "; vout:" , vout, "; amount: ", amount)
-			
-			inputUtxos = append(inputUtxos, &Utxo{
-				TxHash:   h, 
-				Index:    uint32(vout),
-				Value:    int64(amount * 1e8),
-				PkScript: byteScript, 
-			})
+
+		var ancestorFees int64
+		if dealAncestorFees, exists := utxoMap["ancestorfees"]; exists {
+			switch v := dealAncestorFees.(type) {
+			case string:
+				strFee := strings.ReplaceAll(v, ",", "")
+				if parsedFees, err := strconv.ParseInt(strFee, 10, 64); err == nil {
+					ancestorFees = parsedFees
+				}
+			case float64:
+				ancestorFees = int64(v)
+			}
+		}
+
+		var ancestorsize int64
+		if dealAncestorsize, exists := utxoMap["ancestorsize"]; exists {
+			switch v := dealAncestorsize.(type) {
+			case string:
+				ssize := strings.ReplaceAll(v, ",", "")
+				if parsedSize, err := strconv.ParseInt(ssize, 10, 64); err == nil {
+					ancestorsize = parsedSize
+				}
+			case float64:
+				ancestorsize = int64(v)
+			}
+		}
+
+		confirmations, ok := utxoMap["confirmations"].(float64)
+		if !ok {
+			p.Println("Failed to assert confirmations as float64")
+			continue
+		}
+
+		ancestorcount, ok := utxoMap["ancestorcount"].(float64)
+		if !ok {
+			ancestorcount = 0
+		}
+
+		if int64(amount*1e8) > 100000 {
+			p.Println("input Txid: ", h, "; vout:", vout, "; amount: ", amount)
+
+			newUtxo := &Utxo{
+				TxHash:        h,
+				Index:         uint32(vout),
+				Value:         int64(amount * 1e8),
+				PkScript:      byteScript,
+				Ancestorfees:  ancestorFees,
+				Confirmations: int64(confirmations),
+				Ancestorsize:  ancestorsize,
+				Ancestorcount: int64(ancestorcount),
+			}
+
+			inputUtxos = append(inputUtxos, newUtxo)
 		}
 	}
 
-	return inputUtxos, nil 
+	return inputUtxos, nil
 }
 
-
 func sendRawTransaction(txHex string) (string, error) {
-	url := "http://btc:btc@127.0.0.1:8332/"
 	reqBody, err := json.Marshal(map[string]interface{}{
 		"jsonrpc": "1.0",
 		"id":      txHex,
@@ -152,14 +278,15 @@ func sendRawTransaction(txHex string) (string, error) {
 		return "", err
 	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(reqBody))
+	localrpc := config.GetLocalRpcUrl()
+	resp, err := http.Post(localrpc, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return "", err
 	}
 	defer resp.Body.Close()
 
 	// 读取并打印响应体
-	body, err := io.ReadAll(resp.Body) 
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -183,7 +310,6 @@ func sendRawTransaction(txHex string) (string, error) {
 
 	return txID, nil
 }
-
 
 func fetchAvgFee() (int64, error) {
 	mu.Lock()
@@ -228,7 +354,6 @@ func fetchAvgFee() (int64, error) {
 	}
 }
 
-
 func loadConfig() {
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
@@ -248,10 +373,10 @@ func checkAndPrintConfig() {
 	if err != nil {
 		p.Println("Private key error:", err.Error())
 		return
-	} 
-	
+	}
+
 	p.Println("你的钱包: ", config.GetWalletName())
-	p.Println("你的地址 : ", addr) 
+	p.Println("你的地址 : ", addr)
 }
 
 func SendTx(ctx []byte) (string, error) {
@@ -265,18 +390,17 @@ func SendTx(ctx []byte) (string, error) {
 
 	hexStr := hex.EncodeToString(buf.Bytes())
 	ctxHash, err := sendRawTransaction(hexStr)
-	
-	if err != nil { 
+
+	if err != nil {
 		return "", err
 	}
- 
-	return ctxHash, nil
-} 
 
+	return ctxHash, nil
+}
 
 func BuildMintTxs() {
 	runeId, err := config.GetMint()
-	
+
 	if err != nil {
 		p.Println(err.Error())
 		return
@@ -290,17 +414,18 @@ func BuildMintTxs() {
 	p.Printf("Mint Rune[%s] data: 0x%x\n", config.Mint.RuneId, runeData)
 	//dataString, _ := txscript.DisasmString(data)
 	//p.Printf("Mint Script: %s\n", dataString)
- 	
+
 	init_gas_fee := config.GetFeePerByte()
 
 	prvKey, address, _ := config.GetPrivateKeyAddr()
+
+	IsAutoSpeed := config.GetIsAutoSpeed()
+
 	for {
-		// time.Sleep(1 * time.Second)
-  
-		gas_fee := int64(0) 
-		
+		gas_fee := int64(0)
+
 		if init_gas_fee == 0 {
-			gas_fee, err = fetchAvgFee() 
+			gas_fee, err = fetchAvgFee()
 			if err != nil {
 				return
 			}
@@ -309,19 +434,42 @@ func BuildMintTxs() {
 		}
 
 		p.Println("gas费率:", gas_fee)
-		
+
 		utxos, err := getUtxos(address)
+
 		if err != nil {
 			p.Println("getUtxos error:", err.Error())
 			return
 		}
-  
- 		for _, utxo := range utxos {  
-			var inputUtxos []*Utxo 
 
-			inputUtxos = append(inputUtxos, utxo)
-			
-			tx, err := BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), gas_fee, config.GetNetwork(), runeData, true)
+		for _, utxo := range utxos {
+			var inputUtxos []*Utxo
+			if utxo.Ancestorcount == 25 && IsAutoSpeed == 1  { //需要加速快速过快
+				time.Sleep(3 * time.Second)
+
+				inputUtxos, err = returnReplaceTxUtxos(utxo.TxHash.String())
+				if err != nil {
+					p.Println("Error:", err)
+					return
+				}
+				//获取当前区块gas
+				linshi_gas_fee, err := fetchAvgFee()
+				if err != nil {
+					return
+				}
+
+				perfee := utxo.Ancestorfees / utxo.Ancestorsize
+				if perfee >= linshi_gas_fee { //判断当前给的gas大于当前区块gas，则退出
+					break
+				}
+
+				gas_fee = ((utxo.Ancestorsize*linshi_gas_fee - utxo.Ancestorfees) / (utxo.Ancestorsize / 25)) + perfee
+				p.Println("当前平均每笔交易gas为: ", perfee, ";  为了加速给到 ", linshi_gas_fee, ";  加速这笔交易给的gas: ", gas_fee)
+			} else {
+				inputUtxos = append(inputUtxos, utxo)
+			}
+
+			tx, err := BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), gas_fee, config.GetNetwork(), runeData, false)
 			if err != nil {
 				p.Println("BuildMintRuneTx error:", err.Error())
 				break
@@ -332,8 +480,10 @@ func BuildMintTxs() {
 				p.Println("广播失败: ", err.Error())
 				break
 			} else {
-				p.Println("广播成功: ", txid )
+				p.Println("广播成功: ", txid)
 			}
 		}
+
+		time.Sleep(1 * time.Second)
 	}
 }
