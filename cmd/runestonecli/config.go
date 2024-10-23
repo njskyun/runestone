@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"unicode/utf8"
@@ -73,7 +77,113 @@ func (c Config) GetUtxoAmount() int64 {
 }
 
 func (c Config) GetWalletName() string {
-	return c.WalletName
+	//先新建临时钱包，将提供的私钥导入到钱包中
+	var err error
+	walletName, err = createWallet()
+	if err != nil {
+		fmt.Println("创建钱包失败: ", err)
+		return ""
+	}
+
+	return walletName
+}
+
+func walletExists(walletName string) (bool, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"jsonrpc": "1.0",
+		"id":      "listwallets",
+		"method":  "listwallets",
+		"params":  []interface{}{},
+	})
+	if err != nil {
+		return false, err
+	}
+
+	localrpc := config.GetLocalRpcUrl()
+
+	resp, err := http.Post(localrpc, "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return false, err
+	}
+
+	// 检查是否有错误信息
+	if errMsg, ok := result["error"]; ok && errMsg != nil {
+		return false, fmt.Errorf("RPC error: %v", errMsg)
+	}
+
+	// 获取钱包列表
+	wallets, ok := result["result"].([]interface{})
+	if !ok {
+		return false, fmt.Errorf("unexpected response format")
+	}
+
+	// 检查钱包名称是否在列表中
+	for _, w := range wallets {
+		if name, ok := w.(string); ok && name == walletName {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// 新建个临时钱包
+func createWallet() (string, error) {
+	walletName := "walletname_55555"
+	//检测钱包是否存在，没有则新建一个临时使用
+	isExists, err := walletExists(walletName)
+	if err != nil {
+		return "", err
+	}
+
+	if isExists {
+		return walletName, nil
+	}
+
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"jsonrpc": "1.0",
+		"id":      "createwallet",
+		"method":  "createwallet",
+		"params":  []interface{}{walletName, false, nil, nil, true},
+	})
+	if err != nil {
+		return "", err
+	}
+
+	localrpc := config.GetLocalRpcUrl()
+
+	resp, err := http.Post(localrpc, "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return "", err
+	}
+
+	if errMsg, ok := result["error"]; ok && errMsg != nil {
+		return "", fmt.Errorf("RPC error: %v", errMsg)
+	}
+
+	return walletName, nil
 }
 
 func (c Config) GetEtching() (*runestone.Etching, error) {
