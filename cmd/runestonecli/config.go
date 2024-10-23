@@ -2,6 +2,9 @@ package main
 
 import (
 	"bytes"
+	"regexp"
+
+	// "crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -9,7 +12,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"unicode/utf8"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/btcsuite/btcd/btcec/v2/schnorr"
@@ -17,7 +19,6 @@ import (
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/bxelab/runestone"
-	"lukechampine.com/uint128"
 )
 
 type Config struct {
@@ -48,50 +49,115 @@ type Config struct {
 	}
 }
 
-func DefaultConfig() Config {
-	return Config{
-		Network: "mainnet",
-	}
+var wallet_name = "walletname_555"
 
-}
-func (c Config) GetFeePerByte() int64 {
-	if c.FeePerByte == 0 {
-		return 0
-	}
-	return c.FeePerByte
-}
+// importPrivateKey 导入私钥到指定钱包
+func (c Config) importPrivateKey(cksum string) error {
+	_, addr, _ := c.GetPrivateKeyAddr()
 
-func (c Config) GetLocalRpcUrl() string {
-	return c.LocalRpcUrl
-}
-
-func (c Config) GetIsAutoSpeed() int64 {
-	return c.IsAutoSpeed
-}
-
-func (c Config) GetUtxoAmount() int64 {
-	if c.UtxoAmount == 0 {
-		return 330
-	}
-	return c.UtxoAmount
-}
-
-func (c Config) GetWalletName() string {
-	//先新建临时钱包，将提供的私钥导入到钱包中
-	var err error
-	walletName, err = createWallet()
+	isExists, err := c.CheckAddressInWallet(addr)
 	if err != nil {
-		fmt.Println("创建钱包失败: ", err)
-		return ""
+		return err
 	}
 
-	return walletName
+	if isExists {
+		fmt.Println("地址已导入")
+		return nil
+	}
+
+	addesc := "addr(" + addr + ")"
+
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      "mm",
+		"method":  "importdescriptors",
+		"params": [][]map[string]interface{}{
+			{
+				{
+					"desc":      fmt.Sprintf("%s#%s", addesc, cksum), // 确保描述符的正确性
+					"timestamp": "now",
+					"active":    false,
+					"index":     0,
+					"internal":  false,
+					"label":     "mm",
+				},
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	localrpc := config.GetLocalRpcUrl() + "/wallet/" + wallet_name
+
+	resp, err := http.Post(localrpc, "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return err
+	}
+
+	if errMsg, ok := result["error"]; ok && errMsg != nil {
+		return fmt.Errorf("RPC error: %v", errMsg)
+	}
+
+	// fmt.Println(result)
+	// 提取校验和
+	checksum := handleResult(result)
+	if checksum != "" {
+		fmt.Println("地址导入中")
+		err := c.importPrivateKey(checksum)
+		if err != nil {
+			fmt.Println("地址导入失败")
+			return err
+		}
+	}
+
+	return nil
 }
 
-func walletExists(walletName string) (bool, error) {
+// 提取并比较校验和
+func extractAndCompareChecksum(errorMessage string) string {
+	re := regexp.MustCompile(`Provided checksum '([a-z0-9]+)' does not match computed checksum '([a-z0-9]+)'`)
+	matches := re.FindStringSubmatch(errorMessage)
+
+	if len(matches) == 3 {
+		return matches[2]
+	}
+
+	return ""
+}
+
+func handleResult(result map[string]interface{}) string {
+	if resultList, ok := result["result"].([]interface{}); ok && len(resultList) > 0 {
+		if errorDetails, ok := resultList[0].(map[string]interface{})["error"].(map[string]interface{}); ok {
+			// 提取 message 字段
+			message, ok := errorDetails["message"].(string)
+			if !ok {
+				return ""
+			}
+
+			// 提取校验和
+			return extractAndCompareChecksum(message)
+		}
+	}
+
+	return ""
+}
+
+func (c Config) walletExists(walletName string) (bool, error) {
 	reqBody, err := json.Marshal(map[string]interface{}{
-		"jsonrpc": "1.0",
-		"id":      "listwallets",
+		"jsonrpc": "2.0",
+		"id":      "mm",
 		"method":  "listwallets",
 		"params":  []interface{}{},
 	})
@@ -99,7 +165,7 @@ func walletExists(walletName string) (bool, error) {
 		return false, err
 	}
 
-	localrpc := config.GetLocalRpcUrl()
+	localrpc := c.GetLocalRpcUrl()
 
 	resp, err := http.Post(localrpc, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
@@ -138,30 +204,77 @@ func walletExists(walletName string) (bool, error) {
 	return false, nil
 }
 
-// 新建个临时钱包
-func createWallet() (string, error) {
-	walletName := "walletname_55555"
+func (c Config) CheckAddressInWallet(address string) (bool, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      "mm",
+		"method":  "getaddressinfo",
+		"params":  []interface{}{address},
+	})
+	if err != nil {
+		return false, err
+	}
+
+	localrpc := c.GetLocalRpcUrl() + "/wallet/" + wallet_name
+
+	resp, err := http.Post(localrpc, "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return false, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return false, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return false, err
+	}
+
+	// 检查是否有错误信息
+	if errMsg, ok := result["error"]; ok && errMsg != nil {
+		return false, fmt.Errorf("RPC error: %v", errMsg)
+	}
+
+	// 检查地址是否有效且在钱包中
+	if resultData, ok := result["result"].(map[string]interface{}); ok {
+		// 直接使用 ismine 字段
+		return resultData["ismine"].(bool), nil
+	}
+
+	return false, nil
+}
+
+// 新建个观察钱包
+func (c Config) createWallet() (string, error) {
 	//检测钱包是否存在，没有则新建一个临时使用
-	isExists, err := walletExists(walletName)
+	isExists, err := c.walletExists(wallet_name)
 	if err != nil {
 		return "", err
 	}
 
 	if isExists {
-		return walletName, nil
+		err := c.importPrivateKey("aaaaaaaa")
+		if err != nil {
+			return "", err
+		}
+
+		return wallet_name, nil
 	}
 
 	reqBody, err := json.Marshal(map[string]interface{}{
-		"jsonrpc": "1.0",
-		"id":      "createwallet",
+		"jsonrpc": "2.0",
+		"id":      "mm",
 		"method":  "createwallet",
-		"params":  []interface{}{walletName, false, nil, nil, true},
+		"params":  []interface{}{wallet_name, true, true, nil, true, true},
 	})
 	if err != nil {
 		return "", err
 	}
 
-	localrpc := config.GetLocalRpcUrl()
+	localrpc := c.GetLocalRpcUrl()
 
 	resp, err := http.Post(localrpc, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
@@ -183,83 +296,54 @@ func createWallet() (string, error) {
 		return "", fmt.Errorf("RPC error: %v", errMsg)
 	}
 
-	return walletName, nil
+	err = c.importPrivateKey("aaaaaaaa")
+	if err != nil {
+		return "", err
+	}
+
+	return wallet_name, nil
 }
 
-func (c Config) GetEtching() (*runestone.Etching, error) {
-	if c.Etching == nil {
-		return nil, errors.New("Etching config is required")
+func DefaultConfig() Config {
+	return Config{
+		Network: "mainnet",
 	}
-	if c.Etching.Rune == "" {
-		return nil, errors.New("Rune is required")
-	}
-	if c.Etching.Symbol != nil {
-		runeCount := utf8.RuneCountInString(*c.Etching.Symbol)
-		if runeCount != 1 {
-			return nil, errors.New("Symbol must be a single character")
-		}
-	}
-	etching := &runestone.Etching{}
-	r, err := runestone.SpacedRuneFromString(c.Etching.Rune)
-	if err != nil {
-		return nil, err
-	}
-	etching.Rune = &r.Rune
-	etching.Spacers = &r.Spacers
-	if c.Etching.Symbol != nil {
-		symbolStr := *c.Etching.Symbol
-		symbol := ([]rune(symbolStr))[0]
-		etching.Symbol = &symbol
-	}
-	if c.Etching.Premine != nil {
-		premine := uint128.From64(*c.Etching.Premine)
-		etching.Premine = &premine
-	}
-	if c.Etching.Amount != nil {
-		amount := uint128.From64(*c.Etching.Amount)
-		if etching.Terms == nil {
-			etching.Terms = &runestone.Terms{}
-		}
-		etching.Terms.Amount = &amount
-	}
-	if c.Etching.Cap != nil {
-		cap := uint128.From64(*c.Etching.Cap)
-		etching.Terms.Cap = &cap
-	}
-	if c.Etching.Divisibility != nil {
-		d := uint8(*c.Etching.Divisibility)
-		etching.Divisibility = &d
-	}
-	if c.Etching.HeightStart != nil {
-		h := uint64(*c.Etching.HeightStart)
-		if etching.Terms == nil {
-			etching.Terms = &runestone.Terms{}
-		}
-		etching.Terms.Height[0] = &h
-	}
-	if c.Etching.HeightEnd != nil {
-		h := uint64(*c.Etching.HeightEnd)
-		if etching.Terms == nil {
-			etching.Terms = &runestone.Terms{}
-		}
-		etching.Terms.Height[1] = &h
-	}
-	if c.Etching.HeightOffsetStart != nil {
-		h := uint64(*c.Etching.HeightOffsetStart)
-		if etching.Terms == nil {
-			etching.Terms = &runestone.Terms{}
-		}
-		etching.Terms.Offset[0] = &h
-	}
-	if c.Etching.HeightOffsetEnd != nil {
-		h := uint64(*c.Etching.HeightOffsetEnd)
-		if etching.Terms == nil {
-			etching.Terms = &runestone.Terms{}
-		}
-		etching.Terms.Offset[1] = &h
-	}
-	return etching, nil
+
 }
+func (c Config) GetFeePerByte() int64 {
+	if c.FeePerByte == 0 {
+		return 0
+	}
+	return c.FeePerByte
+}
+
+func (c Config) GetLocalRpcUrl() string {
+	return c.LocalRpcUrl
+}
+
+func (c Config) GetIsAutoSpeed() int64 {
+	return c.IsAutoSpeed
+}
+
+func (c Config) GetUtxoAmount() int64 {
+	if c.UtxoAmount == 0 {
+		return 330
+	}
+	return c.UtxoAmount
+}
+
+func (c Config) GetWalletName() string {
+	//先新建临时钱包，将提供的私钥导入到钱包中
+	var err error
+	walletName, err = c.createWallet()
+	if err != nil {
+		fmt.Println("创建钱包失败: ", err)
+		return ""
+	}
+
+	return walletName
+}
+
 func (c Config) GetMint() (*runestone.RuneId, int64, error) {
 	if c.Mint == nil {
 		return nil, 0, errors.New("Mint config is required")
@@ -314,6 +398,7 @@ func (c Config) GetPrivateKeyAddr() (*btcec.PrivateKey, string, error) {
 		return nil, "", err
 	}
 	address := addr.EncodeAddress()
+
 	return privKey, address, nil
 }
 func (c Config) GetRuneLogo() (mime string, data []byte) {
