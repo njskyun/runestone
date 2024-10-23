@@ -39,7 +39,8 @@ type Config struct {
 		HeightOffsetEnd   *int
 	}
 	Mint *struct {
-		RuneId string
+		RuneId  string
+		MintNum int64
 	}
 }
 
@@ -149,19 +150,24 @@ func (c Config) GetEtching() (*runestone.Etching, error) {
 	}
 	return etching, nil
 }
-func (c Config) GetMint() (*runestone.RuneId, error) {
+func (c Config) GetMint() (*runestone.RuneId, int64, error) {
 	if c.Mint == nil {
-		return nil, errors.New("Mint config is required")
+		return nil, 0, errors.New("Mint config is required")
 	}
 	if c.Mint.RuneId == "" {
-		return nil, errors.New("RuneId is required")
+		return nil, 0, errors.New("RuneId is required")
 	}
+	if c.Mint.MintNum == 0 {
+		return nil, 0, errors.New("MintNum is required")
+	}
+
 	runeId, err := runestone.RuneIdFromString(c.Mint.RuneId)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return runeId, nil
+	return runeId, c.Mint.MintNum, nil
 }
+
 func (c Config) GetNetwork() *chaincfg.Params {
 	if c.Network == "mainnet" {
 		return &chaincfg.MainNetParams
