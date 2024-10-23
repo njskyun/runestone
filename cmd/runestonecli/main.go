@@ -31,6 +31,7 @@ type FeeData struct {
 
 var config = DefaultConfig()
 var p *message.Printer
+var walletName = ""
 
 func main() {
 	p = message.NewPrinter(lang)
@@ -443,6 +444,11 @@ func BuildMintTxs() {
 
 		utxos, err := getUtxos(address)
 
+		if len(utxos) == 0 {
+			p.Println("utxos: 没有可用余额:")
+			break
+		}
+
 		if err != nil {
 			p.Println("getUtxos error:", err.Error())
 			return
@@ -491,6 +497,6 @@ func BuildMintTxs() {
 			}
 		}
 
-		// time.Sleep(1 * time.Second)
+		time.Sleep(10 * time.Second)
 	}
 }
