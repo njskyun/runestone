@@ -18,6 +18,10 @@ go version
 git clone https://github.com/njskyun/rune.git
 cd rune/
 go mod tidy
+
+go get github.com/btcsuite/btcd
+go get -u ./...
+go clean -modcache
 ```
 ### 使用
 1. cd cmd/runestonecli
