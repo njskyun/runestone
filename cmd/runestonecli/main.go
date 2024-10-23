@@ -26,7 +26,7 @@ var (
 )
 
 type FeeData struct {
-	AvgFee10 int64 `json:"avgFee_90"` //avgFee_50 avgFee_75 avgFee_90
+	AvgFee10 int64 `json:"avgFee_90"` //avgFee_10 avgFee_25 avgFee_50 avgFee_75 avgFee_90
 }
 
 var config = DefaultConfig()
@@ -399,7 +399,7 @@ func SendTx(ctx []byte) (string, error) {
 }
 
 func BuildMintTxs() {
-	runeId, err := config.GetMint()
+	runeId, mintNum, err := config.GetMint()
 
 	if err != nil {
 		p.Println(err.Error())
@@ -419,9 +419,15 @@ func BuildMintTxs() {
 
 	prvKey, address, _ := config.GetPrivateKeyAddr()
 
-	IsAutoSpeed := config.GetIsAutoSpeed()
+	IsAutoSpeed := config.GetIsAutoSpeed() //是否开启自动加速
+	count := int64(0)                      //记录mint了多少张
 
 	for {
+		if count >= mintNum {
+			p.Println("MINT完成, 共: ", count, "张")
+			break
+		}
+
 		gas_fee := int64(0)
 
 		if init_gas_fee == 0 {
@@ -444,7 +450,7 @@ func BuildMintTxs() {
 
 		for _, utxo := range utxos {
 			var inputUtxos []*Utxo
-			if utxo.Ancestorcount == 25 && IsAutoSpeed == 1  { //需要加速快速过快
+			if utxo.Ancestorcount == 25 && IsAutoSpeed == 1 { //需要加速快速过快
 				time.Sleep(3 * time.Second)
 
 				inputUtxos, err = returnReplaceTxUtxos(utxo.TxHash.String())
@@ -480,10 +486,11 @@ func BuildMintTxs() {
 				p.Println("广播失败: ", err.Error())
 				break
 			} else {
-				p.Println("广播成功: ", txid)
+				count++
+				p.Println("第", count, "张， txhash是: ", txid)
 			}
 		}
 
-		time.Sleep(1 * time.Second)
+		// time.Sleep(1 * time.Second)
 	}
 }
