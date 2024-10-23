@@ -1,19 +1,22 @@
-WalletName: "" #钱包名字， 后面必须要使用这个钱包下面的地址打
 PrivateKey: ""  #钱包里的一个地址的私钥,unisat钱包导出私钥可以看到（最后一栏 Hex Private Key）
 
-#Mint符文，修改RuneId
+
 Mint:
-  RuneId: "1:0"
+  RuneId: "1:0"  #Mint符文，修改RuneId
+  MintNum: 1    #mint几张
+
 
 #gas费率 设置为0的时候会自动使用链上gas，可能会偏高
-FeePerByte: 15
-
-#本地的rpc节点btc:btc，一个是用户名一个是密码，8根据自己的改
-LocalRpcUrl: "http://btc:btc@127.0.0.1:8332"
+FeePerByte: 10
+ 
+#本地的rpc节点btc:btc，一个是用户名一个是密码，根据自己的改
+LocalRpcUrl: "http://btc:btc@127.0.0.1:8885"
 
 #是否启动自动加速，启动的话当UTXO到达25的时候，则会自动获取当前区块gas进行无限次加速（条件当前utxo上请保证足够余额）, 
 #1：加速； 0不加
-IsAutoSpeed: 0
+IsAutoSpeed: 1 
+
+
 
 #不需要动，获取当前区块gas时候会用到，这种方式相对准确
 Network: "mainnet" # mainnet 
