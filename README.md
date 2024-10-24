@@ -16,7 +16,7 @@ source ~/.bashrc
 go version
 
 git clone https://github.com/njskyun/runestone.git
-cd rune/
+cd runestone/
 go mod tidy
 
 go clean -modcache
