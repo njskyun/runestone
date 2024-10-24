@@ -499,7 +499,7 @@ func BuildMintTxs() {
 					speedStatus = 0
 				}
 
-				p.Println("第", count, "张， txhash是: ", txid, "  ,gas_fee是:", gas_fee)
+				p.Println("第", count, "张， txhash是: ", txid, "  ,gas费是:", gas_fee)
 			}
 		}
 
