@@ -115,12 +115,14 @@ func (c Config) importPrivateKey(cksum string) error {
 	// 提取校验和
 	checksum := handleResult(result)
 	if checksum != "" {
-		fmt.Println("地址导入中")
+		fmt.Println("地址导入中, 稍候...")
 		err := c.importPrivateKey(checksum)
 		if err != nil {
 			fmt.Println("地址导入失败")
 			return err
 		}
+		fmt.Println("地址导入成功")
+		return nil
 	}
 
 	return nil
