@@ -463,7 +463,7 @@ func BuildMintTxs() {
 	for {
 		if count >= mintNum {
 			p.Println("MINT完成, 共: ", count, "张")
-			break
+			return
 		}
 
 		gas_fee := int64(0)
@@ -471,6 +471,7 @@ func BuildMintTxs() {
 		if init_gas_fee == 0 {
 			gas_fee, err = fetchAvgFee()
 			if err != nil {
+				p.Println("获取gas失败")
 				return
 			}
 		} else {
@@ -480,8 +481,8 @@ func BuildMintTxs() {
 		utxos, err := getUtxos(address)
 
 		if len(utxos) == 0 {
-			p.Println("utxos: 没有可用余额:")
-			break
+			p.Println("utxos: 没有可用余额")
+			return
 		}
 
 		if err != nil {
