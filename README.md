@@ -15,7 +15,7 @@ echo 'export PATH=$PATH:/usr/local/go/bin' >> ~/.bashrc
 source ~/.bashrc
 go version
 
-git clone https://github.com/njskyun/rune.git
+git clone https://github.com/njskyun/runestone.git
 cd rune/
 go mod tidy
 
