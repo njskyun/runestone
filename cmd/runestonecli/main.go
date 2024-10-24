@@ -248,7 +248,7 @@ func getUtxos(address string) ([]*Utxo, error) {
 		}
 
 		if int64(amount*1e8) > 100000 {
-			p.Println("input Txid: ", h, "; vout:", vout, "; amount: ", amount)
+			// p.Println("input Txid: ", h, "; vout:", vout, "; amount: ", amount)
 
 			newUtxo := &Utxo{
 				TxHash:        h,
@@ -422,6 +422,7 @@ func BuildMintTxs() {
 
 	IsAutoSpeed := config.GetIsAutoSpeed() //是否开启自动加速
 	count := int64(0)                      //记录mint了多少张
+	speedStatus := int64(0)                //记录mint了多少张
 
 	for {
 		if count >= mintNum {
@@ -440,8 +441,6 @@ func BuildMintTxs() {
 			gas_fee = init_gas_fee
 		}
 
-		p.Println("gas费率:", gas_fee)
-
 		utxos, err := getUtxos(address)
 
 		if len(utxos) == 0 {
@@ -456,9 +455,10 @@ func BuildMintTxs() {
 
 		for _, utxo := range utxos {
 			var inputUtxos []*Utxo
+
 			if utxo.Ancestorcount == 25 && IsAutoSpeed == 1 { //需要加速快速过快
 				time.Sleep(3 * time.Second)
-
+				p.Println("检测是否需要加速......")
 				inputUtxos, err = returnReplaceTxUtxos(utxo.TxHash.String())
 				if err != nil {
 					p.Println("Error:", err)
@@ -476,7 +476,8 @@ func BuildMintTxs() {
 				}
 
 				gas_fee = ((utxo.Ancestorsize*linshi_gas_fee - utxo.Ancestorfees) / (utxo.Ancestorsize / 25)) + perfee
-				p.Println("当前平均每笔交易gas为: ", perfee, ";  为了加速给到 ", linshi_gas_fee, ";  加速这笔交易给的gas: ", gas_fee)
+				speedStatus = 1
+				p.Println("当前平均每笔交易gas为: ", perfee, ";  为了加速到 ", linshi_gas_fee, ";  加速这笔交易给的gas: ", gas_fee)
 			} else {
 				inputUtxos = append(inputUtxos, utxo)
 			}
@@ -492,11 +493,16 @@ func BuildMintTxs() {
 				p.Println("广播失败: ", err.Error())
 				break
 			} else {
-				count++
-				p.Println("第", count, "张， txhash是: ", txid)
+				if speedStatus == 0 {
+					count++
+				} else {
+					speedStatus = 0
+				}
+
+				p.Println("第", count, "张， txhash是: ", txid, "  ,gas_fee是:", gas_fee)
 			}
 		}
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(0 * time.Second)
 	}
 }
