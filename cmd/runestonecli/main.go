@@ -417,7 +417,7 @@ func BuildMintTxs() {
 	//p.Printf("Mint Script: %s\n", dataString)
 
 	init_gas_fee := config.GetFeePerByte()
-
+	speed_gas_fee := config.GetSpeedFee()
 	prvKey, address, _ := config.GetPrivateKeyAddr()
 
 	IsAutoSpeed := config.GetIsAutoSpeed() //是否开启自动加速
@@ -464,10 +464,16 @@ func BuildMintTxs() {
 					p.Println("Error:", err)
 					return
 				}
+
 				//获取当前区块gas
-				linshi_gas_fee, err := fetchAvgFee()
-				if err != nil {
-					return
+				var linshi_gas_fee = int64(0)
+				if speed_gas_fee > 0 {
+					linshi_gas_fee = speed_gas_fee
+				} else {
+					linshi_gas_fee, err = fetchAvgFee()
+					if err != nil {
+						return
+					}
 				}
 
 				perfee := utxo.Ancestorfees / utxo.Ancestorsize
