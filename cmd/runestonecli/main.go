@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,6 +55,41 @@ func getrawtransaction(txhash string) (map[string]interface{}, error) {
 
 	localrpc := config.GetLocalRpcUrl()
 
+	resp, err := http.Post(localrpc, "application/json", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, err
+	}
+
+	if errMsg, ok := result["error"]; ok && errMsg != nil {
+		return nil, fmt.Errorf("RPC error: %v", errMsg)
+	}
+
+	return result["result"].(map[string]interface{}), nil
+}
+
+func gettransaction(txhash string) (map[string]interface{}, error) {
+	reqBody, err := json.Marshal(map[string]interface{}{
+		"jsonrpc": "1.0",
+		"id":      "gettransaction",
+		"method":  "gettransaction",
+		"params":  []interface{}{txhash},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	localrpc := fmt.Sprintf(config.GetLocalRpcUrl()+"/wallet/%s", config.GetWalletName())
 	resp, err := http.Post(localrpc, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, err
@@ -455,14 +491,28 @@ func BuildMintTxs() {
 
 		for _, utxo := range utxos {
 			var inputUtxos []*Utxo
-
+			tx := []byte{}
 			if utxo.Ancestorcount == 25 && IsAutoSpeed == 1 { //需要加速快速过快
 				time.Sleep(3 * time.Second)
 				p.Println("检测是否需要加速......")
+
+				//计算最近这笔交易
+				currentTransaction, err := gettransaction(utxo.TxHash.String())
+				if err != nil {
+					p.Println(err)
+					break
+				}
+				if confirmations, ok := currentTransaction["confirmations"].(float64); ok {
+					if confirmations != 0 {
+						p.Println("交易已确认")
+						break
+					}
+				}
+				lastTransactionTtotalFee := int64(math.Abs(currentTransaction["fee"].(float64) * 1e8))
 				inputUtxos, err = returnReplaceTxUtxos(utxo.TxHash.String())
 				if err != nil {
-					p.Println("Error:", err)
-					return
+					p.Println("获取替换utxo报错: ", err)
+					break
 				}
 
 				//获取当前区块gas
@@ -472,7 +522,8 @@ func BuildMintTxs() {
 				} else {
 					linshi_gas_fee, err = fetchAvgFee()
 					if err != nil {
-						return
+						p.Println("获取gas报错", err)
+						break
 					}
 				}
 
@@ -481,17 +532,24 @@ func BuildMintTxs() {
 					break
 				}
 
-				gas_fee = ((utxo.Ancestorsize*linshi_gas_fee - utxo.Ancestorfees) / (utxo.Ancestorsize / 25)) + perfee
+				lastfee := int64(math.Ceil(float64(lastTransactionTtotalFee) / (float64(utxo.Ancestorsize) / 25)))
+				speed_gas_fee := 25*(linshi_gas_fee-perfee) + lastfee
+
 				speedStatus = 1
-				p.Println("当前平均每笔交易gas为: ", perfee, ";  为了加速到 ", linshi_gas_fee, ";  加速这笔交易给的gas: ", gas_fee)
+				p.Println("当前最新区块给的gas: ", lastfee, ";  当前平均每笔交易gas为: ", perfee, ";  为了加速到 ", linshi_gas_fee, ";  加速这笔交易给的gas: ", speed_gas_fee)
+				tx, err = BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), speed_gas_fee, config.GetNetwork(), runeData, false)
+				if err != nil {
+					p.Println("广播错误:", err.Error())
+					break
+				}
+
 			} else {
 				inputUtxos = append(inputUtxos, utxo)
-			}
-
-			tx, err := BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), gas_fee, config.GetNetwork(), runeData, false)
-			if err != nil {
-				p.Println("BuildMintRuneTx error:", err.Error())
-				break
+				tx, err = BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), gas_fee, config.GetNetwork(), runeData, false)
+				if err != nil {
+					p.Println("广播错误:", err.Error())
+					break
+				}
 			}
 
 			txid, err := SendTx(tx)
