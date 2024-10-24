@@ -16,10 +16,10 @@ source ~/.bashrc
 go version
 
 git clone https://github.com/njskyun/runestone.git
+go clean -modcache
 cd runestone/
 go mod tidy
 
-go clean -modcache
 ```
 ### 使用
 1. cd cmd/runestonecli
