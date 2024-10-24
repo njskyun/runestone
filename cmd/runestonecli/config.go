@@ -27,6 +27,7 @@ type Config struct {
 	FeePerByte  int64
 	UtxoAmount  int64
 	IsAutoSpeed int64
+	SpeedFee    int64
 	Network     string
 	RpcUrl      string
 	LocalRpcUrl string
@@ -331,6 +332,10 @@ func (c Config) GetUtxoAmount() int64 {
 		return 330
 	}
 	return c.UtxoAmount
+}
+
+func (c Config) GetSpeedFee() int64 {
+	return c.SpeedFee
 }
 
 func (c Config) GetWalletName() string {
