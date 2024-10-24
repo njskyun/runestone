@@ -1,9 +1,11 @@
-PrivateKey: ""  #钱包里的一个地址的私钥,unisat钱包导出私钥可以看到（最后一栏 Hex Private Key）
+#钱包里的一个地址的私钥,unisat钱包导出私钥可以看到（最后一栏 Hex Private Key）,
+#注意：配置好私钥后，先运行命令 “ go run . ”，程序会将对应地址导入到本地节点，之后再将btc充值到这个地址上，之所以这样是因为会检测不到导入前地址上的余额
+PrivateKey: "" 
 
 
 Mint:
   RuneId: "1:0"  #Mint符文，修改RuneId
-  MintNum: 100    #mint几张
+  MintNum: 1    #mint几张
 
 
 #gas费率 设置为0的时候会自动使用链上gas，可能会偏高
@@ -16,7 +18,7 @@ LocalRpcUrl: "http://btc:btc@127.0.0.1:8885"
 #1：加速； 0不加
 IsAutoSpeed: 1 
 #当需要加速的时候，卡着的每笔交易想加速到多少gas，如果设置为0，则会自动从链上获取当前区块gas
-SpeedFee: 32 
+SpeedFee: 5 
 
 
 
