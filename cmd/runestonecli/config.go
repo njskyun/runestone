@@ -49,7 +49,7 @@ type Config struct {
 	}
 }
 
-var wallet_name = "walletname_555"
+var wallet_name = "walletname_8888"
 
 // importPrivateKey 导入私钥到指定钱包
 func (c Config) importPrivateKey(cksum string) error {
@@ -61,7 +61,6 @@ func (c Config) importPrivateKey(cksum string) error {
 	}
 
 	if isExists {
-		fmt.Println("地址已导入")
 		return nil
 	}
 
@@ -80,6 +79,7 @@ func (c Config) importPrivateKey(cksum string) error {
 					"index":     0,
 					"internal":  false,
 					"label":     "mm",
+					"watchonly": true, // 设置为仅观察地址
 				},
 			},
 		},
@@ -238,6 +238,7 @@ func (c Config) CheckAddressInWallet(address string) (bool, error) {
 		return false, fmt.Errorf("RPC error: %v", errMsg)
 	}
 
+	// fmt.Println("getaddressinfo:  ", result)
 	// 检查地址是否有效且在钱包中
 	if resultData, ok := result["result"].(map[string]interface{}); ok {
 		// 直接使用 ismine 字段
