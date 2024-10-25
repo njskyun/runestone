@@ -34,11 +34,19 @@ var config = DefaultConfig()
 var p *message.Printer
 var walletName = ""
 
-func main() { 
+func main() {
 	p = message.NewPrinter(lang)
-	loadConfig() 
-	walletName = config.GetWalletName() 
-	checkAndPrintConfig() 
+	loadConfig()
+
+	//获取并导入钱包
+	var err error
+	walletName, err = config.GetWalletName()
+	if err != nil {
+		fmt.Println("获取钱包时候失败：", err)
+		return
+	}
+
+	checkAndPrintConfig()
 	BuildMintTxs()
 }
 
@@ -283,7 +291,7 @@ func getUtxos(address string) ([]*Utxo, error) {
 			ancestorcount = 0
 		}
 
-		if int64(amount*1e8) > 100000 {
+		if int64(amount*1e8) > 10001 {
 			// p.Println("input Txid: ", h, "; vout:", vout, "; amount: ", amount)
 
 			newUtxo := &Utxo{
@@ -437,6 +445,7 @@ func SendTx(ctx []byte) (string, error) {
 
 func BuildMintTxs() {
 	runeId, mintNum, err := config.GetMint()
+	unconfirmednum := config.GetUnconfirmeds()
 
 	if err != nil {
 		p.Println(err.Error())
@@ -491,9 +500,10 @@ func BuildMintTxs() {
 		}
 
 		for _, utxo := range utxos {
+			p.Println("输入Txid", utxo.TxHash.String())
 			var inputUtxos []*Utxo
 			tx := []byte{}
-			if utxo.Ancestorcount == 25 && IsAutoSpeed == 1 { //需要加速快速过快
+			if utxo.Ancestorcount == unconfirmednum && IsAutoSpeed == 1 { //需要加速快速过快
 				time.Sleep(3 * time.Second)
 				p.Println("检测是否需要加速......")
 
@@ -533,8 +543,8 @@ func BuildMintTxs() {
 					break
 				}
 
-				lastfee := int64(math.Ceil(float64(lastTransactionTtotalFee) / (float64(utxo.Ancestorsize) / 25)))
-				speed_gas_fee := 25*(linshi_gas_fee-perfee) + lastfee
+				lastfee := int64(math.Ceil(float64(lastTransactionTtotalFee) / (float64(utxo.Ancestorsize) / float64(unconfirmednum))))
+				speed_gas_fee := unconfirmednum*(linshi_gas_fee-perfee) + lastfee
 
 				speedStatus = 1
 				p.Println("要被替换的交易的gas: ", lastfee, ";  当前平均每笔交易gas为: ", perfee, ";  为了加速到 ", linshi_gas_fee, ";  加速这笔交易给的gas: ", speed_gas_fee)
@@ -568,6 +578,6 @@ func BuildMintTxs() {
 			}
 		}
 
-		time.Sleep(0 * time.Second)
+		time.Sleep(1 * time.Second)
 	}
 }
