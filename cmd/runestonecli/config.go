@@ -22,16 +22,17 @@ import (
 )
 
 type Config struct {
-	WalletName  string
-	PrivateKey  string
-	FeePerByte  int64
-	UtxoAmount  int64
-	IsAutoSpeed int64
-	SpeedFee    int64
-	Network     string
-	RpcUrl      string
-	LocalRpcUrl string
-	Etching     *struct {
+	WalletName   string
+	PrivateKey   string
+	FeePerByte   int64
+	UtxoAmount   int64
+	IsAutoSpeed  int64
+	SpeedFee     int64
+	Unconfirmeds int64
+	Network      string
+	RpcUrl       string
+	LocalRpcUrl  string
+	Etching      *struct {
 		Rune              string
 		Logo              string
 		Symbol            *string
@@ -188,11 +189,12 @@ func (c Config) walletExists(walletName string) (bool, error) {
 
 	// 检查是否有错误信息
 	if errMsg, ok := result["error"]; ok && errMsg != nil {
-		return false, fmt.Errorf("RPC error: %v", errMsg)
+		return false, fmt.Errorf("节点报错: %v", errMsg)
 	}
 
 	// 获取钱包列表
 	wallets, ok := result["result"].([]interface{})
+
 	if !ok {
 		return false, fmt.Errorf("unexpected response format")
 	}
@@ -255,6 +257,7 @@ func (c Config) CheckAddressInWallet(address string) (bool, error) {
 func (c Config) createWallet() (string, error) {
 	//检测钱包是否存在，没有则新建一个临时使用
 	isExists, err := c.walletExists(wallet_name)
+
 	if err != nil {
 		return "", err
 	}
@@ -340,16 +343,19 @@ func (c Config) GetSpeedFee() int64 {
 	return c.SpeedFee
 }
 
-func (c Config) GetWalletName() string {
+func (c Config) GetUnconfirmeds() int64 {
+	return c.Unconfirmeds
+}
+
+func (c Config) GetWalletName() (string, error) {
 	//先新建临时钱包，将提供的私钥导入到钱包中
 	var err error
 	walletName, err = c.createWallet()
 	if err != nil {
-		fmt.Println("创建钱包失败: ", err)
-		return ""
+		return "", err
 	}
 
-	return walletName
+	return walletName, nil
 }
 
 func (c Config) GetMint() (*runestone.RuneId, int64, error) {
