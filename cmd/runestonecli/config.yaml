@@ -9,14 +9,13 @@ Mint:
  
 
 FeePerByte: 2  #gas费率 设置为0的时候会自动使用链上gas，可能会偏高
-LocalRpcUrl: "http://rpc:rpc@127.0.0.1:8885"  #本地的rpc节点btc:btc，一个是用户名一个是密码，8885是端口号，根据自己的改
-
+LocalRpcUrl: "http://节点用户名:节点密码@127.0.0.1:端口号"  #本地的rpc节点，端口默认是8332
 
 
 #启动加速的话当UTXO到达<Unconfirmeds>的时候，则会获取 <SpeedFee> 进行无限次加速（当前utxo上需要保证足够余额）
 IsAutoSpeed: 1 #1：启动加速； 0不启动
 SpeedFee: 4 #当需要加速的时候，设置卡着的每笔交易想加速到多少gas，如果设置为0，则会自动从链上获取当前区块gas
-Unconfirmeds: 25 #当被卡多少笔时候，开始加速
+Unconfirmeds: 25 #当卡着的交易大于等于设置的值时候开始加速
 
 
 
