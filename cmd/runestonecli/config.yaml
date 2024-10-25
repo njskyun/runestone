@@ -5,24 +5,22 @@ PrivateKey: ""
 
 Mint:
   RuneId: "1:0"  #Mint符文，修改RuneId
-  MintNum: 1    #mint几张
-
-
-#gas费率 设置为0的时候会自动使用链上gas，可能会偏高
-FeePerByte: 25
+  MintNum: 100   #mint几张
  
-#本地的rpc节点btc:btc，一个是用户名一个是密码，8885是端口号，根据自己的改
-LocalRpcUrl: "http://btc:btc@127.0.0.1:8885"
 
-#是否启动自动加速，启动的话当UTXO到达25的时候，则会自动获取当前区块gas进行无限次加速（条件当前utxo上请保证足够余额）, 
-#1：加速； 0不加
-IsAutoSpeed: 1 
-#当需要加速的时候，卡着的每笔交易想加速到多少gas，如果设置为0，则会自动从链上获取当前区块gas，只能是整数
-SpeedFee: 32 
+FeePerByte: 2  #gas费率 设置为0的时候会自动使用链上gas，可能会偏高
+LocalRpcUrl: "http://rpc:rpc@127.0.0.1:8885"  #本地的rpc节点btc:btc，一个是用户名一个是密码，8885是端口号，根据自己的改
+
+
+
+#启动加速的话当UTXO到达<Unconfirmeds>的时候，则会获取 <SpeedFee> 进行无限次加速（当前utxo上需要保证足够余额）
+IsAutoSpeed: 1 #1：启动加速； 0不启动
+SpeedFee: 4 #当需要加速的时候，设置卡着的每笔交易想加速到多少gas，如果设置为0，则会自动从链上获取当前区块gas
+Unconfirmeds: 25 #当被卡多少笔时候，开始加速
 
 
 
 #不需要动，获取当前区块gas时候会用到，这种方式相对准确
 Network: "mainnet" # mainnet 
-RpcUrl: "https://mempool.fractalbitcoin.io/api" #https://mempool.space/api https://mempool.space/testnet/api
+RpcUrl: "https://mempool.fractalbitcoin.io/api" #https://mempool.space/api 
 UtxoAmount: 330
