@@ -537,7 +537,7 @@ func BuildMintTxs() {
 				speed_gas_fee := 25*(linshi_gas_fee-perfee) + lastfee
 
 				speedStatus = 1
-				p.Println("当前最新区块给的gas: ", lastfee, ";  当前平均每笔交易gas为: ", perfee, ";  为了加速到 ", linshi_gas_fee, ";  加速这笔交易给的gas: ", speed_gas_fee)
+				p.Println("要被替换的交易的gas: ", lastfee, ";  当前平均每笔交易gas为: ", perfee, ";  为了加速到 ", linshi_gas_fee, ";  加速这笔交易给的gas: ", speed_gas_fee)
 				tx, err = BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), speed_gas_fee, config.GetNetwork(), runeData, false)
 				if err != nil {
 					p.Println("广播错误:", err.Error())
