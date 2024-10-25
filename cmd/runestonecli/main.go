@@ -34,11 +34,11 @@ var config = DefaultConfig()
 var p *message.Printer
 var walletName = ""
 
-func main() {
+func main() { 
 	p = message.NewPrinter(lang)
-	loadConfig()
-	checkAndPrintConfig()
-
+	loadConfig() 
+	walletName = config.GetWalletName() 
+	checkAndPrintConfig() 
 	BuildMintTxs()
 }
 
@@ -89,7 +89,7 @@ func gettransaction(txhash string) (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	localrpc := fmt.Sprintf(config.GetLocalRpcUrl()+"/wallet/%s", config.GetWalletName())
+	localrpc := fmt.Sprintf(config.GetLocalRpcUrl()+"/wallet/%s", walletName)
 	resp, err := http.Post(localrpc, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, err
@@ -170,7 +170,7 @@ func returnReplaceTxUtxos(txhash string) ([]*Utxo, error) {
 
 func getUtxos(address string) ([]*Utxo, error) {
 	localrpc := config.GetLocalRpcUrl()
-	url := fmt.Sprintf(localrpc+"/wallet/%s", config.GetWalletName())
+	url := fmt.Sprintf(localrpc+"/wallet/%s", walletName)
 	reqBody, err := json.Marshal(map[string]interface{}{
 		"jsonrpc": "1.0",
 		"id":      "getUtxos",
@@ -412,7 +412,7 @@ func checkAndPrintConfig() {
 		return
 	}
 
-	p.Println("你的钱包: ", config.GetWalletName())
+	p.Println("你的钱包: ", walletName)
 	p.Println("你的地址 : ", addr)
 }
 
