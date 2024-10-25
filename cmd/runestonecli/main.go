@@ -578,6 +578,6 @@ func BuildMintTxs() {
 			}
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(0 * time.Second)
 	}
 }
