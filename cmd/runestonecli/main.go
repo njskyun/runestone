@@ -52,7 +52,7 @@ func main() {
 
 func getrawtransaction(txhash string) (map[string]interface{}, error) {
 	reqBody, err := json.Marshal(map[string]interface{}{
-		"jsonrpc": "1.0",
+		"jsonrpc": "2.0",
 		"id":      "getrawtransaction",
 		"method":  "getrawtransaction",
 		"params":  []interface{}{txhash, 1},
@@ -88,7 +88,7 @@ func getrawtransaction(txhash string) (map[string]interface{}, error) {
 
 func gettransaction(txhash string) (map[string]interface{}, error) {
 	reqBody, err := json.Marshal(map[string]interface{}{
-		"jsonrpc": "1.0",
+		"jsonrpc": "2.0",
 		"id":      "gettransaction",
 		"method":  "gettransaction",
 		"params":  []interface{}{txhash},
@@ -159,10 +159,12 @@ func returnReplaceTxUtxos(txhash string) ([]*Utxo, error) {
 			return nil, err // 添加错误处理
 		}
 
+		processedAmount := floatToSatoshis(amount)
+
 		newUtxo := &Utxo{
 			TxHash:        HexToHash(txID),
 			Index:         uint32(voutIndex),
-			Value:         int64(amount * 1e8),
+			Value:         processedAmount,
 			PkScript:      byteScript,
 			Ancestorfees:  0,
 			Confirmations: 0,
@@ -180,7 +182,7 @@ func getUtxos(address string) ([]*Utxo, error) {
 	localrpc := config.GetLocalRpcUrl()
 	url := fmt.Sprintf(localrpc+"/wallet/%s", walletName)
 	reqBody, err := json.Marshal(map[string]interface{}{
-		"jsonrpc": "1.0",
+		"jsonrpc": "2.0",
 		"id":      "getUtxos",
 		"method":  "listunspent",
 		"params":  []interface{}{0, 9999999, []string{address}},
@@ -291,13 +293,15 @@ func getUtxos(address string) ([]*Utxo, error) {
 			ancestorcount = 0
 		}
 
-		if int64(amount*1e8) > 10001 {
-			// p.Println("input Txid: ", h, "; vout:", vout, "; amount: ", amount)
+		processedAmount := floatToSatoshis(amount)
+
+		if processedAmount > 10001 {
+			// p.Println("input Txid: ", h, "; vout:", vout, "; amount: ", amount, ";  处理后的金额:  ", processedAmount)
 
 			newUtxo := &Utxo{
 				TxHash:        h,
 				Index:         uint32(vout),
-				Value:         int64(amount * 1e8),
+				Value:         processedAmount,
 				PkScript:      byteScript,
 				Ancestorfees:  ancestorFees,
 				Confirmations: int64(confirmations),
@@ -312,9 +316,21 @@ func getUtxos(address string) ([]*Utxo, error) {
 	return inputUtxos, nil
 }
 
+func floatToSatoshis(floatAmount float64) int64 {
+	// 保证小数有 8 位
+	amountStr := fmt.Sprintf("%.8f", floatAmount)
+	amountStr = strings.Replace(amountStr, ".", "", -1)
+
+	// 转换为int64
+	processedAmount, _ := strconv.ParseInt(amountStr, 10, 64)
+
+	return processedAmount
+}
+
 func sendRawTransaction(txHex string) (string, error) {
+	// p.Println(txHex)
 	reqBody, err := json.Marshal(map[string]interface{}{
-		"jsonrpc": "1.0",
+		"jsonrpc": "2.0",
 		"id":      txHex,
 		"method":  "sendrawtransaction",
 		"params":  []interface{}{txHex},
@@ -500,7 +516,6 @@ func BuildMintTxs() {
 		}
 
 		for _, utxo := range utxos {
-			// p.Println("输入Txid", utxo.TxHash.String())
 			var inputUtxos []*Utxo
 			tx := []byte{}
 			if utxo.Ancestorcount >= unconfirmednum && IsAutoSpeed == 1 { //需要加速快速过快
@@ -547,7 +562,7 @@ func BuildMintTxs() {
 				speed_gas_fee := utxo.Ancestorcount*(linshi_gas_fee-perfee) + lastfee
 
 				speedStatus = 1
-				p.Println("要被替换的交易的gas: ", lastfee, ";  当前平均每笔交易gas为: ", perfee, ";  为了加速到 ", linshi_gas_fee, ";  加速这笔交易给的gas: ", speed_gas_fee)
+				p.Println("被卡交易笔数: ", utxo.Ancestorcount, ";  要被替换的交易的gas: ", lastfee, ";  当前平均每笔交易gas为: ", perfee, ";  为了加速到 ", linshi_gas_fee, ";  加速这笔交易给的gas: ", speed_gas_fee)
 				tx, err = BuildTransferBTCTx(prvKey, inputUtxos, address, config.GetUtxoAmount(), speed_gas_fee, config.GetNetwork(), runeData, false)
 				if err != nil {
 					p.Println("广播错误:", err.Error())
