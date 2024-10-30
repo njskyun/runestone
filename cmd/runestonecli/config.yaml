@@ -21,5 +21,5 @@ Unconfirmeds: 25 #当卡着的交易大于等于设置的值时候开始加速
 
 #不需要动，获取当前区块gas时候会用到，这种方式相对准确
 Network: "mainnet" # mainnet 
-RpcUrl: "https://mempool.fractalbitcoin.io/api" #https://mempool.space/api 
+RpcUrl: "https://mempool.fractalbitcoin.io/api" # btc链改成： https://mempool.space/api 
 UtxoAmount: 330
